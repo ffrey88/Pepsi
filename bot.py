@@ -25,7 +25,25 @@ def get_main_keyboard():
     markup.add(btn_rules)
     return markup
 
-# 1. Ловим сообщения от пользователей
+# 1. СНАЧАЛА ловим выбор цели (поддержка/общение), чтобы бот не пересылал это в группу как обычное сообщение
+@bot.message_handler(func=lambda message: message.chat.type == 'private' and ('поддержк' in message.text.lower() or 'общени' in message.text.lower()), content_types=['text'])
+def handle_purpose(message):
+    user_id = message.chat.id
+    
+    try:
+        sent_msg = bot.send_message(GROUP_ID, f"Путник: {message.text}")
+        cursor.execute("INSERT INTO messages (group_msg_id, user_id) VALUES (?, ?)", (sent_msg.message_id, user_id))
+        conn.commit()
+    except:
+        pass
+
+    reply_text = (
+        "Понял тебя. Напиши сюда всё, что тревожит.\n\n"
+        "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
+    )
+    bot.reply_to(message, reply_text, reply_markup=get_main_keyboard())
+
+# 2. ТЕПЕРЬ ловим все остальные сообщения от пользователей
 @bot.message_handler(func=lambda message: message.chat.type == 'private' and message.text != '📜 Правила' and not message.text.startswith('/start'), content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_user_message(message):
     user_id = message.chat.id
@@ -40,7 +58,7 @@ def handle_user_message(message):
     except Exception as e:
         pass 
 
-# 2. Ловим ответы админов
+# 3. Ловим ответы админов
 @bot.message_handler(func=lambda message: message.chat.id == GROUP_ID, content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_admin_reply(message):
     if message.reply_to_message:
@@ -61,7 +79,7 @@ def handle_admin_reply(message):
         else:
             bot.reply_to(message, "⚠️ Не найдено в базе.")
 
-# 3. Команда /start
+# 4. Команда /start
 @bot.message_handler(commands=['start'], func=lambda message: message.chat.type == 'private')
 def send_welcome(message):
     welcome_text = (
@@ -74,24 +92,6 @@ def send_welcome(message):
         "Напиши, с какой целью ты пришел: нужна поддержка или общение?"
     )
     bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_keyboard())
-
-# 4. Обработка выбора цели (ловим и "поддержка/поддержку", и "общение/общения")
-@bot.message_handler(func=lambda message: message.chat.type == 'private' and ('поддержк' in message.text.lower() or 'общени' in message.text.lower()), content_types=['text'])
-def handle_purpose(message):
-    user_id = message.chat.id
-    
-    try:
-        sent_msg = bot.send_message(GROUP_ID, f"Путник: {message.text}")
-        cursor.execute("INSERT INTO messages (group_msg_id, user_id) VALUES (?, ?)", (sent_msg.message_id, user_id))
-        conn.commit()
-    except:
-        pass
-
-    reply_text = (
-        "Понял тебя. Напиши сюда всё, что тревожит.\n\n"
-        "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
-    )
-    bot.reply_to(message, reply_text, reply_markup=get_main_keyboard())
 
 # 5. Правила
 @bot.message_handler(commands=['rules'], func=lambda message: message.chat.type == 'private')
