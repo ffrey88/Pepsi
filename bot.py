@@ -6,7 +6,7 @@ from threading import Thread
 
 # --- НАСТРОЙКИ ---
 BOT_TOKEN = "9199244262:AAEANMSZuo1qSQwKaemzrAWmANBx8sr8Qlo" 
-GROUP_ID = -1001234567890  # СЮДА_ВСТАВЬ_СВОЙ_ID_ГРУППЫ
+GROUP_ID = -1004429036169  # СЮДА_ВСТАВЬ_СВОЙ_ID_ГРУППЫ
 # -----------------
 
 bot = telebot.TeleBot(BOT_TOKEN)
