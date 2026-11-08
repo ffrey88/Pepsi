@@ -6,7 +6,7 @@ from flask import Flask
 from threading import Thread
 
 # --- НАСТРОЙКИ ---
-BOT_TOKEN = "9199244262:AAEdEUtAiNwTZ_OHe3Et6FN--VTxfuii3ys"
+BOT_TOKEN = '9199244262:AAEdEUtAiNwTZ_OHe3Et6FN--VTxfuii3ys'  # Вставь сюда свой токен между кавычками
 GROUP_ID = -1004429036169  # Твой ID группы
 # -----------------
 
@@ -54,8 +54,8 @@ def handle_purpose(message):
     
     bot.reply_to(message, reply_text)
 
-# 2. Ловим все остальные сообщения
-@bot.message_handler(func=lambda message: message.chat.type == 'private' and not message.text.startswith('/start'), content_types=['text', 'photo', 'voice', 'video', 'document'])
+# 2. Ловим все остальные сообщения (игнорируем команды, которые начинаются с /)
+@bot.message_handler(func=lambda message: message.chat.type == 'private' and not message.text.startswith('/'), content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_user_message(message):
     user_id = message.chat.id
     try:
@@ -104,7 +104,7 @@ def send_welcome(message):
         "Здесь вы можете найти в себе силы нарисовать новый крест - или оставить карту без него "
         "и жить свободно.\n\n"
         "⚠️ *Важно:* мы не психологи. Если вам угрожает опасность, позвоните на бесплатную линию: 8-800-2000-122\n\n"
-        "**Просим для начала ознакомиться с правилами:** /rules\n\n"
+        "*Просим для начала ознакомиться с правилами* (/rules)\n\n"
         "Напиши, с какой целью ты пришел: нужна поддержка или общение?"
     )
     bot.reply_to(message, welcome_text, parse_mode='Markdown')
