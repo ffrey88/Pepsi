@@ -40,18 +40,18 @@ def handle_purpose(message):
 
     if 'поддержк' in text_lower:
         reply_text = (
-            "Понял тебя. Напиши сюда всё, что тревожит.\n\n"
+            "Хорошо. Напиши сюда всё, что тревожит.\n\n"
             "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз.\n\n"
-            "В конце сообщения обязательно напиши сам тег админа, к которому хочешь обратиться (например: #админ)."
+            "В конце сообщения обязательно напиши сам тег админа, к которому хочешь обратиться, например: #админ. Свой тег админ напишет сам, когда ответит."
         )
     else:
         reply_text = (
-            "Понял тебя. Напиши, если захочешь поговорить или отвлечься.\n\n"
+            "Хорошо. Напиши, если захочешь поговорить или отвлечься.\n\n"
             "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз.\n\n"
-            "В конце сообщения обязательно напиши сам тег админа, к которому хочешь обратиться (например: #админ)."
+            "В конце сообщения обязательно напиши сам тег админа, к которому хочешь обратиться, например: #админ. Свой тег админ напишет сам, когда ответит."
         )
     
-    bot.reply_to(message, reply_text)
+    bot.reply_to(message, reply_text, reply_markup=types.ReplyKeyboardRemove())
 
 # 2. Ловим все остальные сообщения (жестко исключаем команды)
 @bot.message_handler(func=lambda message: message.chat.type == 'private' and message.text not in ['/rules', '/start'] and not message.text.startswith('/'), content_types=['text', 'photo', 'voice', 'video', 'document'])
@@ -106,7 +106,8 @@ def send_welcome(message):
         "*Просим для начала ознакомиться с правилами:* /rules\n\n"
         "Напиши, с какой целью ты пришел: нужна поддержка или общение?"
     )
-    bot.reply_to(message, welcome_text, parse_mode='Markdown')
+    
+    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=types.ReplyKeyboardRemove())
 
 # 5. Правила
 @bot.message_handler(commands=['rules'], func=lambda message: message.chat.type == 'private')
