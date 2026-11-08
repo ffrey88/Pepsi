@@ -71,12 +71,31 @@ def send_welcome(message):
         "Здесь вы можете найти в себе силы нарисовать новый крест - или оставить карту без него "
         "и жить свободно.\n\n"
         "⚠️ *Важно:* мы не психологи. Если вам угрожает опасность, позвоните на бесплатную линию: 8-800-2000-122\n\n"
-        "Напиши, с какой целью ты пришел: нужна поддержка или просто общение?\n\n"
-        "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
+        "Напиши, с какой целью ты пришел: нужна поддержка или общение?"
     )
     bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_keyboard())
 
-# 4. Правила (команда и кнопка)
+# 4. Обработка выбора цели (когда человек пишет "поддержка" или "общение")
+@bot.message_handler(func=lambda message: message.chat.type == 'private' and ('поддержк' in message.text.lower() or 'общени' in message.text.lower()), content_types=['text'])
+def handle_purpose(message):
+    user_id = message.chat.id
+    
+    # Отправляем выбранную цель в группу админов
+    try:
+        sent_msg = bot.send_message(GROUP_ID, f"Путник: {message.text}")
+        cursor.execute("INSERT INTO messages (group_msg_id, user_id) VALUES (?, ?)", (sent_msg.message_id, user_id))
+        conn.commit()
+    except:
+        pass
+
+    # Отвечаем пользователю
+    reply_text = (
+        "Понял тебя. Напиши сюда всё, что тревожит.\n\n"
+        "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
+    )
+    bot.reply_to(message, reply_text, reply_markup=get_main_keyboard())
+
+# 5. Правила
 @bot.message_handler(commands=['rules'], func=lambda message: message.chat.type == 'private')
 @bot.message_handler(func=lambda message: message.text == '📜 Правила')
 def send_rules(message):
