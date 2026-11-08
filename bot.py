@@ -1,4 +1,5 @@
 import telebot
+from telebot import types
 import sqlite3
 import os
 from flask import Flask
@@ -6,7 +7,7 @@ from threading import Thread
 
 # --- НАСТРОЙКИ ---
 BOT_TOKEN = "9199244262:AAEdEUtAiNwTZ_OHe3Et6FN--VTxfuii3ys" 
-GROUP_ID = -1004429036169  # СЮДА_ВСТАВЬ_СВОЙ_ID_ГРУППЫ
+GROUP_ID = -1001234567890  # СЮДА_ВСТАВЬ_СВОЙ_ID_ГРУППЫ
 # -----------------
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -17,21 +18,29 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS messages
                   (group_msg_id INTEGER PRIMARY KEY, user_id INTEGER)''')
 conn.commit()
 
-@bot.message_handler(func=lambda message: message.chat.type == 'private', content_types=['text', 'photo', 'voice', 'video', 'document'])
+# Клавиатура с кнопками
+def get_main_keyboard():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn_rules = types.KeyboardButton('📜 Правила для путников')
+    markup.add(btn_rules)
+    return markup
+
+# 1. Ловим сообщения от пользователей в боте
+@bot.message_handler(func=lambda message: message.chat.type == 'private' and message.text != '📜 Правила для путников' and not message.text.startswith('/start'), content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_user_message(message):
     user_id = message.chat.id
     try:
         if message.content_type == 'text':
-            sent_msg = bot.send_message(GROUP_ID, f"📩 Сообщение:\n\n{message.text}")
+            sent_msg = bot.send_message(GROUP_ID, f"Путник: {message.text}")
         else:
-            sent_msg = bot.copy_message(GROUP_ID, user_id, message.message_id, caption="📩 Медиа-сообщение:")
+            sent_msg = bot.copy_message(GROUP_ID, user_id, message.message_id, caption="Путник: [медиа]")
         
         cursor.execute("INSERT INTO messages (group_msg_id, user_id) VALUES (?, ?)", (sent_msg.message_id, user_id))
         conn.commit()
-        bot.reply_to(message, "✅ Сообщение отправлено. Ожидай ответа.")
     except Exception as e:
-        bot.reply_to(message, "⚠️ Ошибка. Попробуй позже.")
+        pass 
 
+# 2. Ловим ответы админов из группы
 @bot.message_handler(func=lambda message: message.chat.id == GROUP_ID, content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_admin_reply(message):
     if message.reply_to_message:
@@ -43,15 +52,17 @@ def handle_admin_reply(message):
             user_id = result[0]
             try:
                 if message.content_type == 'text':
-                    bot.send_message(user_id, f"💬 Ответ:\n\n{message.text}")
+                    # Отправляем текст как есть, без подписей
+                    bot.send_message(user_id, message.text, reply_markup=get_main_keyboard())
                 else:
-                    bot.copy_message(user_id, GROUP_ID, message.message_id, caption="💬 Ответ:")
+                    bot.copy_message(user_id, GROUP_ID, message.message_id, reply_markup=get_main_keyboard())
                 bot.reply_to(message, "✅ Доставлено.")
             except Exception:
                 bot.reply_to(message, "⚠️ Пользователь заблокировал бота.")
         else:
             bot.reply_to(message, "⚠️ Не найдено в базе.")
 
+# 3. Команда /start
 @bot.message_handler(commands=['start'], func=lambda message: message.chat.type == 'private')
 def send_welcome(message):
     welcome_text = (
@@ -60,12 +71,35 @@ def send_welcome(message):
         "После чего наступает тупик.\n\n"
         "Здесь вы можете найти в себе силы нарисовать новый крест - или оставить карту без него "
         "и жить свободно.\n\n"
-        "Просто напишите сюда всё, что вас тревожит, и админы ответят вам.\n\n"
-        "⚠️ *Важно:* мы не психологи. Если вам угрожает опасность, позвоните на бесплатную линию: 8-800-2000-122"
+        "⚠️ *Важно:* мы не психологи. Если вам угрожает опасность, позвоните на бесплатную линию: 8-800-2000-122\n\n"
+        "С какой целью вы пришли?"
     )
-    bot.reply_to(message, welcome_text, parse_mode='Markdown')
+    
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    btn_support = types.KeyboardButton('🆘 Мне нужна поддержка')
+    btn_chat = types.KeyboardButton('💬 Просто общение')
+    markup.add(btn_support, btn_chat)
+    
+    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=markup)
 
+# 4. Обработка выбора цели
+@bot.message_handler(func=lambda message: message.text in ['🆘 Мне нужна поддержка', '💬 Просто общение'], content_types=['text'])
+def handle_purpose(message):
+    user_id = message.chat.id
+    purpose = message.text
+    
+    try:
+        sent_msg = bot.send_message(GROUP_ID, f"Путник: выбрал цель - {purpose}")
+        cursor.execute("INSERT INTO messages (group_msg_id, user_id) VALUES (?, ?)", (sent_msg.message_id, user_id))
+        conn.commit()
+    except:
+        pass
+
+    bot.reply_to(message, "Понял тебя. Напиши сюда всё, что тревожит, и мы ответим.", reply_markup=get_main_keyboard())
+
+# 5. Правила
 @bot.message_handler(commands=['rules'], func=lambda message: message.chat.type == 'private')
+@bot.message_handler(func=lambda message: message.text == '📜 Правила для путников')
 def send_rules(message):
     rules_text = (
         "📜 *Правила для путников:*\n\n"
@@ -82,8 +116,9 @@ def send_rules(message):
         "6. *Конфиденциальность.*\n"
         "Всё, что говорится в этом боте, остается только в боте. Мы не выносим чужие истории на всеобщее обозрение."
     )
-    bot.reply_to(message, rules_text, parse_mode='Markdown')
+    bot.reply_to(message, rules_text, parse_mode='Markdown', reply_markup=get_main_keyboard())
 
+# --- БЛОК ДЛЯ RAILWAY ---
 app = Flask(__name__)
 
 @app.route('/')
