@@ -1,3 +1,4 @@
+
 import telebot
 from telebot import types
 import sqlite3
@@ -18,7 +19,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS messages
                   (group_msg_id INTEGER PRIMARY KEY, user_id INTEGER)''')
 conn.commit()
 
-# Словарь для запоминания выбора цели
 users_purpose = {}
 
 # 1. Ловим выбор цели
@@ -34,28 +34,28 @@ def handle_purpose(message):
     except:
         pass
 
-    # Если уже писал, бот молчит
     if user_id in users_purpose:
         return 
 
     users_purpose[user_id] = True
 
-    # Разные ответы для общения и поддержки
     if 'поддержк' in text_lower:
         reply_text = (
             "Понял тебя. Напиши сюда всё, что тревожит.\n\n"
-            "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
+            "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз.\n\n"
+            "В конце сообщения обязательно укажи тег админа, к которому хочешь обратиться (например: #фембой)."
         )
     else:
         reply_text = (
             "Понял тебя. Напиши, если захочешь поговорить или отвлечься.\n\n"
-            "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
+            "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз.\n\n"
+            "В конце сообщения обязательно укажи тег админа, к которому хочешь обратиться (например: #фембой)."
         )
     
     bot.reply_to(message, reply_text)
 
-# 2. Ловим все остальные сообщения (игнорируем команды, которые начинаются с /)
-@bot.message_handler(func=lambda message: message.chat.type == 'private' and not message.text.startswith('/'), content_types=['text', 'photo', 'voice', 'video', 'document'])
+# 2. Ловим все остальные сообщения (жестко исключаем команды)
+@bot.message_handler(func=lambda message: message.chat.type == 'private' and message.text not in ['/rules', '/start'] and not message.text.startswith('/'), content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_user_message(message):
     user_id = message.chat.id
     try:
