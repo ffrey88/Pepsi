@@ -6,7 +6,7 @@ from flask import Flask
 from threading import Thread
 
 # --- НАСТРОЙКИ ---
-BOT_TOKEN = "9199244262:AAEdEUtAiNwTZ_OHe3Et6FN--VTxfuii3ys" 
+BOT_TOKEN = "9199244262:AAEdEUtAiNwTZ_OHe3Et6FN--VTxfuii3ys"
 GROUP_ID = -1004429036169  # Твой ID группы
 # -----------------
 
@@ -18,14 +18,8 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS messages
                   (group_msg_id INTEGER PRIMARY KEY, user_id INTEGER)''')
 conn.commit()
 
-# Словарь для запоминания, кто уже выбрал цель (чтобы не спамить ответами)
+# Словарь для запоминания выбора цели
 users_purpose = {}
-
-def get_main_keyboard():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn_rules = types.KeyboardButton('📜 Правила')
-    markup.add(btn_rules)
-    return markup
 
 # 1. Ловим выбор цели
 @bot.message_handler(func=lambda message: message.chat.type == 'private' and ('поддержк' in message.text.lower() or 'общени' in message.text.lower()), content_types=['text'])
@@ -33,7 +27,6 @@ def handle_purpose(message):
     user_id = message.chat.id
     text_lower = message.text.lower()
     
-    # Всегда пересылаем выбранную цель в группу
     try:
         sent_msg = bot.send_message(GROUP_ID, f"Путник: {message.text}")
         cursor.execute("INSERT INTO messages (group_msg_id, user_id) VALUES (?, ?)", (sent_msg.message_id, user_id))
@@ -41,9 +34,9 @@ def handle_purpose(message):
     except:
         pass
 
-    # Проверяем, писал ли он это уже
+    # Если уже писал, бот молчит
     if user_id in users_purpose:
-        return # Если уже писал, бот молчит
+        return 
 
     users_purpose[user_id] = True
 
@@ -59,16 +52,12 @@ def handle_purpose(message):
             "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
         )
     
-    bot.reply_to(message, reply_text, reply_markup=get_main_keyboard())
+    bot.reply_to(message, reply_text)
 
 # 2. Ловим все остальные сообщения
-@bot.message_handler(func=lambda message: message.chat.type == 'private' and message.text != '📜 Правила' and not message.text.startswith('/start'), content_types=['text', 'photo', 'voice', 'video', 'document'])
+@bot.message_handler(func=lambda message: message.chat.type == 'private' and not message.text.startswith('/start'), content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_user_message(message):
     user_id = message.chat.id
-    
-    # Если пользователь пишет слова "поддержка" или "общение" просто в тексте, мы не хотим, чтобы они пересылались как обычный текст, 
-    # если он уже выбирал цель. Но для этого уже есть обработчик выше.
-    
     try:
         if message.content_type == 'text':
             sent_msg = bot.send_message(GROUP_ID, f"Путник: {message.text}")
@@ -92,9 +81,9 @@ def handle_admin_reply(message):
             user_id = result[0]
             try:
                 if message.content_type == 'text':
-                    bot.send_message(user_id, message.text, reply_markup=get_main_keyboard())
+                    bot.send_message(user_id, message.text)
                 else:
-                    bot.copy_message(user_id, GROUP_ID, message.message_id, reply_markup=get_main_keyboard())
+                    bot.copy_message(user_id, GROUP_ID, message.message_id)
                 bot.reply_to(message, "✅ Доставлено.")
             except Exception:
                 bot.reply_to(message, "⚠️ Пользователь заблокировал бота.")
@@ -105,7 +94,6 @@ def handle_admin_reply(message):
 @bot.message_handler(commands=['start'], func=lambda message: message.chat.type == 'private')
 def send_welcome(message):
     user_id = message.chat.id
-    # Сбрасываем память о выборе цели при команде старт, чтобы человек мог заново выбрать
     if user_id in users_purpose:
         del users_purpose[user_id]
         
@@ -116,13 +104,13 @@ def send_welcome(message):
         "Здесь вы можете найти в себе силы нарисовать новый крест - или оставить карту без него "
         "и жить свободно.\n\n"
         "⚠️ *Важно:* мы не психологи. Если вам угрожает опасность, позвоните на бесплатную линию: 8-800-2000-122\n\n"
+        "**Просим для начала ознакомиться с правилами:** /rules\n\n"
         "Напиши, с какой целью ты пришел: нужна поддержка или общение?"
     )
-    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_keyboard())
+    bot.reply_to(message, welcome_text, parse_mode='Markdown')
 
 # 5. Правила
 @bot.message_handler(commands=['rules'], func=lambda message: message.chat.type == 'private')
-@bot.message_handler(func=lambda message: message.text == '📜 Правила')
 def send_rules(message):
     rules_text = (
         "📜 *Правила для путников:*\n\n"
@@ -139,7 +127,7 @@ def send_rules(message):
         "6. *Конфиденциальность.*\n"
         "Всё, что говорится в этом боте, остается только в боте. Мы не выносим чужие истории на всеобщее обозрение."
     )
-    bot.reply_to(message, rules_text, parse_mode='Markdown', reply_markup=get_main_keyboard())
+    bot.reply_to(message, rules_text, parse_mode='Markdown')
 
 # --- БЛОК ДЛЯ RAILWAY ---
 app = Flask(__name__)
