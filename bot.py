@@ -5,7 +5,7 @@ from flask import Flask
 from threading import Thread
 
 # --- НАСТРОЙКИ ---
-BOT_TOKEN = "9199244262:AAEANMSZuo1qSQwKaemzrAWmANBx8sr8Qlo" 
+BOT_TOKEN = "9199244262:AAEdEUtAiNwTZ_OHe3Et6FN--VTxfuii3ys" 
 GROUP_ID = -1004429036169  # СЮДА_ВСТАВЬ_СВОЙ_ID_ГРУППЫ
 # -----------------
 
