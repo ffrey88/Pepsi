@@ -18,18 +18,22 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS messages
                   (group_msg_id INTEGER PRIMARY KEY, user_id INTEGER)''')
 conn.commit()
 
-# Клавиатура только с правилами
+# Словарь для запоминания, кто уже выбрал цель (чтобы не спамить ответами)
+users_purpose = {}
+
 def get_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn_rules = types.KeyboardButton('📜 Правила')
     markup.add(btn_rules)
     return markup
 
-# 1. СНАЧАЛА ловим выбор цели (поддержка/общение), чтобы бот не пересылал это в группу как обычное сообщение
+# 1. Ловим выбор цели
 @bot.message_handler(func=lambda message: message.chat.type == 'private' and ('поддержк' in message.text.lower() or 'общени' in message.text.lower()), content_types=['text'])
 def handle_purpose(message):
     user_id = message.chat.id
+    text_lower = message.text.lower()
     
+    # Всегда пересылаем выбранную цель в группу
     try:
         sent_msg = bot.send_message(GROUP_ID, f"Путник: {message.text}")
         cursor.execute("INSERT INTO messages (group_msg_id, user_id) VALUES (?, ?)", (sent_msg.message_id, user_id))
@@ -37,16 +41,34 @@ def handle_purpose(message):
     except:
         pass
 
-    reply_text = (
-        "Понял тебя. Напиши сюда всё, что тревожит.\n\n"
-        "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
-    )
+    # Проверяем, писал ли он это уже
+    if user_id in users_purpose:
+        return # Если уже писал, бот молчит
+
+    users_purpose[user_id] = True
+
+    # Разные ответы для общения и поддержки
+    if 'поддержк' in text_lower:
+        reply_text = (
+            "Понял тебя. Напиши сюда всё, что тревожит.\n\n"
+            "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
+        )
+    else:
+        reply_text = (
+            "Понял тебя. Напиши, если захочешь поговорить или отвлечься.\n\n"
+            "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
+        )
+    
     bot.reply_to(message, reply_text, reply_markup=get_main_keyboard())
 
-# 2. ТЕПЕРЬ ловим все остальные сообщения от пользователей
+# 2. Ловим все остальные сообщения
 @bot.message_handler(func=lambda message: message.chat.type == 'private' and message.text != '📜 Правила' and not message.text.startswith('/start'), content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_user_message(message):
     user_id = message.chat.id
+    
+    # Если пользователь пишет слова "поддержка" или "общение" просто в тексте, мы не хотим, чтобы они пересылались как обычный текст, 
+    # если он уже выбирал цель. Но для этого уже есть обработчик выше.
+    
     try:
         if message.content_type == 'text':
             sent_msg = bot.send_message(GROUP_ID, f"Путник: {message.text}")
@@ -82,6 +104,11 @@ def handle_admin_reply(message):
 # 4. Команда /start
 @bot.message_handler(commands=['start'], func=lambda message: message.chat.type == 'private')
 def send_welcome(message):
+    user_id = message.chat.id
+    # Сбрасываем память о выборе цели при команде старт, чтобы человек мог заново выбрать
+    if user_id in users_purpose:
+        del users_purpose[user_id]
+        
     welcome_text = (
         "В жизни на карте всегда есть крест, указывающий путь. Возможно, даже нарисованный не вами. "
         "Но бывает, крест смывает водой после ночлега у реки, или неудачно потрётся лист. "
