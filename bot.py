@@ -7,7 +7,7 @@ from threading import Thread
 
 # --- НАСТРОЙКИ ---
 BOT_TOKEN = "9199244262:AAEdEUtAiNwTZ_OHe3Et6FN--VTxfuii3ys" 
-GROUP_ID = -1001234567890  # СЮДА_ВСТАВЬ_СВОЙ_ID_ГРУППЫ
+GROUP_ID = -1004429036169  # Твой ID группы
 # -----------------
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -18,15 +18,15 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS messages
                   (group_msg_id INTEGER PRIMARY KEY, user_id INTEGER)''')
 conn.commit()
 
-# Клавиатура с кнопками
+# Клавиатура только с правилами
 def get_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn_rules = types.KeyboardButton('📜 Правила для путников')
+    btn_rules = types.KeyboardButton('📜 Правила')
     markup.add(btn_rules)
     return markup
 
-# 1. Ловим сообщения от пользователей в боте
-@bot.message_handler(func=lambda message: message.chat.type == 'private' and message.text != '📜 Правила для путников' and not message.text.startswith('/start'), content_types=['text', 'photo', 'voice', 'video', 'document'])
+# 1. Ловим сообщения от пользователей
+@bot.message_handler(func=lambda message: message.chat.type == 'private' and message.text != '📜 Правила' and not message.text.startswith('/start'), content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_user_message(message):
     user_id = message.chat.id
     try:
@@ -40,7 +40,7 @@ def handle_user_message(message):
     except Exception as e:
         pass 
 
-# 2. Ловим ответы админов из группы
+# 2. Ловим ответы админов
 @bot.message_handler(func=lambda message: message.chat.id == GROUP_ID, content_types=['text', 'photo', 'voice', 'video', 'document'])
 def handle_admin_reply(message):
     if message.reply_to_message:
@@ -52,7 +52,6 @@ def handle_admin_reply(message):
             user_id = result[0]
             try:
                 if message.content_type == 'text':
-                    # Отправляем текст как есть, без подписей
                     bot.send_message(user_id, message.text, reply_markup=get_main_keyboard())
                 else:
                     bot.copy_message(user_id, GROUP_ID, message.message_id, reply_markup=get_main_keyboard())
@@ -72,34 +71,14 @@ def send_welcome(message):
         "Здесь вы можете найти в себе силы нарисовать новый крест - или оставить карту без него "
         "и жить свободно.\n\n"
         "⚠️ *Важно:* мы не психологи. Если вам угрожает опасность, позвоните на бесплатную линию: 8-800-2000-122\n\n"
-        "С какой целью вы пришли?"
+        "Напиши, с какой целью ты пришел: нужна поддержка или просто общение?\n\n"
+        "Если админ не ответит в течение 15 минут, пожалуйста, напиши сообщение еще раз."
     )
-    
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    btn_support = types.KeyboardButton('🆘 Мне нужна поддержка')
-    btn_chat = types.KeyboardButton('💬 Просто общение')
-    markup.add(btn_support, btn_chat)
-    
-    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=markup)
+    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_keyboard())
 
-# 4. Обработка выбора цели
-@bot.message_handler(func=lambda message: message.text in ['🆘 Мне нужна поддержка', '💬 Просто общение'], content_types=['text'])
-def handle_purpose(message):
-    user_id = message.chat.id
-    purpose = message.text
-    
-    try:
-        sent_msg = bot.send_message(GROUP_ID, f"Путник: выбрал цель - {purpose}")
-        cursor.execute("INSERT INTO messages (group_msg_id, user_id) VALUES (?, ?)", (sent_msg.message_id, user_id))
-        conn.commit()
-    except:
-        pass
-
-    bot.reply_to(message, "Понял тебя. Напиши сюда всё, что тревожит, и мы ответим.", reply_markup=get_main_keyboard())
-
-# 5. Правила
+# 4. Правила (команда и кнопка)
 @bot.message_handler(commands=['rules'], func=lambda message: message.chat.type == 'private')
-@bot.message_handler(func=lambda message: message.text == '📜 Правила для путников')
+@bot.message_handler(func=lambda message: message.text == '📜 Правила')
 def send_rules(message):
     rules_text = (
         "📜 *Правила для путников:*\n\n"
